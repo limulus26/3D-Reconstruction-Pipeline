@@ -17,7 +17,7 @@ def render(camera, scene, output):
     bproc.init()
 
     # load the objects into the scene
-    objs = bproc.loader.load_obj(scene)
+    objs = bproc.loader.load_blend(scene)
 
     # define a light and set its location and energy level
     light = bproc.types.Light()
@@ -36,17 +36,28 @@ def render(camera, scene, output):
             # generate camera pose from file
             line = [float(x) for x in line.split()]
             position, euler_rotation = line[:3], line[3:6]
+
             matrix_world = bproc.math.build_transformation_mat(position, euler_rotation)
             bproc.camera.add_camera_pose(matrix_world)
 
             # add camera pose to trajectory log
             trajectory.append(f"{count} {count} " + str(count + 1))
             count += 1
-            rotation_matrix = convertToMatrix(euler_rotation[0], euler_rotation[1], euler_rotation[2])
-            trajectory.append(f"{rotation_matrix[0][0]} {rotation_matrix[0][1]} {rotation_matrix[0][2]} {position[0]}")
-            trajectory.append(f"{rotation_matrix[1][0]} {rotation_matrix[1][1]} {rotation_matrix[1][2]} {position[1]}")
-            trajectory.append(f"{rotation_matrix[2][0]} {rotation_matrix[2][1]} {rotation_matrix[2][2]} {position[2]}")
-            trajectory.append('0 0 0 1')
+            o3d_world = bproc.math.change_source_coordinate_frame_of_transformation_matrix(matrix_world, ["X", "-Y", "-Z"])
+            # coord_change_mat = np.array([[1., 0., 0.], [0, -1., 0.], [0., 0., -1.]], dtype=np.float32)
+            # pts3D = pts3D.dot(coord_change_mat.T)
+            for array in o3d_world:
+                trajectory.append(' '.join(str(x) for x in array))
+
+        # my old way of creating the transformation matrix
+            # if (euler_rotation[0] == 0) and (euler_rotation[2] == 0):
+            #     rotation_matrix = convertToMatrix(euler_rotation[0], euler_rotation[1], euler_rotation[2])
+            # else:
+            #     rotation_matrix = convertToMatrix((1.1), (0), (euler_rotation[2]+3.1415926))
+            # trajectory.append(f"{rotation_matrix[0][0]} {rotation_matrix[0][1]} {rotation_matrix[0][2]} {(position[0])}")
+            # trajectory.append(f"{rotation_matrix[1][0]} {rotation_matrix[1][1]} {rotation_matrix[1][2]} {(position[1])}")
+            # trajectory.append(f"{rotation_matrix[2][0]} {rotation_matrix[2][1]} {rotation_matrix[2][2]} {position[2]}")
+            # trajectory.append('0 0 0 1')
 
         # write trajectory log to output directory    
         with open(os.path.join(output, 'trajectory.log'), 'w') as t:
@@ -77,15 +88,25 @@ def extract(scene):
                 im = Image.fromarray(color_array, mode="RGB")
                 im.save(os.path.join(scene, f'{os.path.splitext(file)[0]}.jpg'))
 
-                # convert depth to npy
-                depth_array = np.array(depth)
-                np.save(os.path.join(scene, f'{os.path.splitext(file)[0]}.npy'), depth_array)
+                # convert depth to png
 
-def convertToMatrix(z, y, x):
-    r = [[m.cos(y) * m.cos(z), (m.sin(x) * m.sin(y) * m.cos(z)) - (m.cos(x) * m.sin(z)), (m.cos(x) * m.sin(z) * m.cos(z)) + (m.sin(x) * m.sin(z))],
-         [m.cos(y) * m.sin(z), (m.sin(x) * m.sin(y) * m.sin(z)) - (m.cos(x) * m.cos(z)), (m.cos(x) * m.sin(z) * m.sin(z)) + (m.sin(x) * m.cos(z))],
-         [-(m.sin(y)),          m.sin(x) * m.cos(y),                                      m.cos(x) * m.cos(y)                                    ]]
-    return r
+                # affects the length
+                depth_array = np.array(depth)
+                for i in range(len(depth_array)):
+                    for j in range(len(depth_array[i])):
+                        depth_array[i][j] = depth_array[i][j] * 15
+                dp = Image.fromarray(depth_array)
+                if dp.mode != 'RGB':
+                    dp = dp.convert('RGB')
+                dp.save(os.path.join(scene, f'{os.path.splitext(file)[0]}.png'))
+
+
+#my old way of creating the 3x3 rotation matrix
+# def convertToMatrix(x, y, z):
+#     r = [[m.cos(y) * m.cos(z), (m.sin(x) * m.sin(y) * m.cos(z)) - (m.cos(x) * m.sin(z)), (m.cos(x) * m.sin(z) * m.cos(z)) + (m.sin(x) * m.sin(z))],
+#          [m.cos(y) * m.sin(z), (m.sin(x) * m.sin(y) * m.sin(z)) - (m.cos(x) * m.cos(z)), (m.cos(x) * m.sin(z) * m.sin(z)) + (m.sin(x) * m.cos(z))],
+#          [-(m.sin(y)),          m.sin(x) * m.cos(y),                                      m.cos(x) * m.cos(y)                                    ]]
+#     return r
 
 def main():
     # clean output directory
