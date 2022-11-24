@@ -31,8 +31,8 @@ def construct(scene):
     camera_poses = read_trajectory(os.path.join(scene, 'trajectory.log'))
 
     volume = o3d.pipelines.integration.ScalableTSDFVolume(
-        voxel_length = 8.0 / 512.0,
-        sdf_trunc = 0.4,
+        voxel_length = 4.0 / 512.0,
+        sdf_trunc = 0.08,
         color_type = o3d.pipelines.integration.TSDFVolumeColorType.RGB8
     )
 
@@ -44,10 +44,15 @@ def construct(scene):
             color, depth, depth_trunc=10, convert_rgb_to_intensity=False, depth_scale=0.1
         )
         
+        K = np.ndarray(shape=(3,3), dtype=np.float64, buffer=np.array([[888.9, 0., 319.5],
+                                                                       [0., 888.9, 239.5],
+                                                                       [0., 0., 1.]]))
+
         volume.integrate(
             rgbd,
             o3d.camera.PinholeCameraIntrinsic(
-                o3d.camera.PinholeCameraIntrinsicParameters.PrimeSenseDefault
+                # o3d.camera.PinholeCameraIntrinsicParameters.PrimeSenseDefault
+                width=640, height=480, intrinsic_matrix=K
             ),
             np.linalg.inv(camera_poses[i].pose)
             # camera_poses[i].pose
@@ -61,4 +66,4 @@ def construct(scene):
                                     #    lookat=[2.0712, 2.0312, 1.7251],
                                     #    up=[-0.0558, -0.9809, 0.1864],
                                     #    zoom=0.47
-        )
+       )

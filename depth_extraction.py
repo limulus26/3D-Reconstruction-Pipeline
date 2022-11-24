@@ -44,8 +44,10 @@ def render(camera, scene, output):
             trajectory.append(f"{count} {count} " + str(count + 1))
             count += 1
             o3d_world = bproc.math.change_source_coordinate_frame_of_transformation_matrix(matrix_world, ["X", "-Y", "-Z"])
-            # coord_change_mat = np.array([[1., 0., 0.], [0, -1., 0.], [0., 0., -1.]], dtype=np.float32)
-            # pts3D = pts3D.dot(coord_change_mat.T)
+            for i in range(len(o3d_world)-1):
+                o3d_world[i][-1] = o3d_world[i][-1] / 5.12
+
+            print(o3d_world)
             for array in o3d_world:
                 trajectory.append(' '.join(str(x) for x in array))
 
@@ -94,7 +96,8 @@ def extract(scene):
                 depth_array = np.array(depth)
                 for i in range(len(depth_array)):
                     for j in range(len(depth_array[i])):
-                        depth_array[i][j] = depth_array[i][j] * 15
+                        # if depth_array[i][j] < 100:
+                            depth_array[i][j] = depth_array[i][j] * 5
                 dp = Image.fromarray(depth_array)
                 if dp.mode != 'RGB':
                     dp = dp.convert('RGB')
